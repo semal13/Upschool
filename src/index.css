@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-talya-gradient dark:bg-night-gradient text-[#4a3f5e] dark:text-slate-100 font-sans antialiased min-h-screen bg-fixed transition-colors duration-500;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/80 dark:bg-slate-900/60 backdrop-blur-md rounded-[2.5rem] shadow-purple-glow dark:shadow-[0_8px_30px_rgba(191,168,226,0.15)] border border-white/80 dark:border-white/10 relative overflow-hidden transition-colors duration-500;
+  }
+
+  .glass-nav {
+    @apply bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl rounded-full shadow-clay dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.4)] border border-white/80 dark:border-white/10 relative overflow-hidden transition-colors duration-500;
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 8s ease-in-out infinite;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Custom Hide Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
