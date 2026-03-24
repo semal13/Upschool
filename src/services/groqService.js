@@ -65,13 +65,37 @@ export const fetchLifestylePlan = async (userData = {}) => {
     budgetInstruction = "Kullanıcının bütçesi ESNEK/İYİ. Somon, avokado, badem unu, organik tohumlar gibi harika ve premium malzemeleri de içeren her türlü zengin içeriği rahatça kullanabilirsin.";
   }
 
+  const themes = [
+    "Akdeniz usulü ferah, zeytinyağlı ve bol yeşillikli",
+    "Çok pratik, tek tavada/tencerede pişen sıcak ev yemeği tarzı",
+    "Baharatlı, doyurucu ve fırınlanmış kışkırtıcı lezzetler",
+    "Uzak Doğu esintili, çok renkli ve wok tavada sote stili",
+    "Bahar ferahlığında, bol lifli, meyveli ve yemişli kaseler (Bowls)"
+  ];
+  const workoutThemes = [
+    "Sadece yatakta/matta yatılarak yapılan tembel kız esnemeleri",
+    "Dans esintili, kıpır kıpır ve terletici kardiyo",
+    "Ağırlık odaklı, yavaş ama kasları yakan direnç antrenmanı",
+    "Nefes ve esneme odaklı, zihni sakinleştiren derin yoga",
+    "Ayakta yapılan, ekipmansız ve sessiz (zıplamasız) pilates"
+  ];
+
+  const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+  const randomWorkout = workoutThemes[Math.floor(Math.random() * workoutThemes.length)];
+  const randomSeed = Math.floor(Math.random() * 1000000);
+
   const system = getSystemPrompt() + " SADECE GEÇERLİ BİR JSON FORMATI DÖNDÜR. MD kod parçacıkları kullanma, salt JSON döndür.";
   const user = `Benim döngü evrem: ${cyclePhase}. Bütçe durumum: ${budget}.
+[SİSTEM ZARI: ${randomSeed} - Her üretimde tamamen yeni ve daha önce hiç akla gelmemiş özel bir kombinasyon yarat.]
+
 ${budgetInstruction}
 
-Yukarıdaki bütçe ve döngü sınırlarıma HARFİYEN uyarak; her seferinde *tamamen farklı ve özgün* 4 adet detaylı yemek tarifi ve 3 adet hafif/orta seviye egzersiz rutini üret. JSON şablonu tam olarak şu olmalı:
+LÜTFEN BU YENİLEMEDE TARİFLER İÇİN ŞU TEMAYA AĞIRLIK VER: "${randomTheme}".
+EGZERSİZLER İÇİN İSE ŞU TARZI BENİMSE: "${randomWorkout}".
+
+Yukarıdaki bütçe, döngü ve TEMA sınırlarına HARFİYEN uyarak; 4 adet detaylı yemek tarifi ve 3 adet egzersiz rutini üret. JSON şablonu tam olarak şu olmalı:
 {
-  "focus": "Günün odak mesajı",
+  "focus": "Günün yeni ve ilham verici odak mesajı",
   "recipes": [
     { "id": 1, "title": "Türkçe Yemek Adı", "time": "25 dk", "cal": "380 kcal", "type": "Yüksek Protein", "ingredients": ["..."], "steps": ["..."] }
   ],
