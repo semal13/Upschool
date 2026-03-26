@@ -1,13 +1,22 @@
-export const getGroqResponse = async (systemPrompt, userMessage) => {
+export const getGroqResponse = async (systemPrompt, messageHistoryArray = [], currentMessage) => {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  
   if (!apiKey) {
     console.error("API Key bulunamadı! Lütfen .env dosyasını kontrol et.");
     throw new Error("API Key missing");
   }
 
   try {
-    console.log('API İsteği Başladı...');
+    const formattedHistory = messageHistoryArray?.map(msg => ({
+      role: msg.isUser ? "user" : "assistant",
+      content: msg.text
+    })) || [];
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...formattedHistory,
+      { role: "user", content: currentMessage }
+    ];
+
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -16,12 +25,9 @@ export const getGroqResponse = async (systemPrompt, userMessage) => {
       },
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage }
-        ],
-        temperature: 0.7,
-        max_tokens: 1024
+        messages: messages,
+        temperature: 0.8,
+        max_tokens: 2000
       })
     });
 
@@ -35,20 +41,79 @@ export const getGroqResponse = async (systemPrompt, userMessage) => {
     return data.choices[0].message.content;
   } catch (error) {
     console.error("Fetch işlemi başarısız:", error);
-    return "Şu an bağlantı kurulamadı ama ben yanındayım. Lütfen birazdan tekrar dene. 💜";
+    return "Bir anlığına bağlantımız koptu ama ben seninleyim. Lütfen tekrar yazar mısın? 💜";
+  }
+};
+
+const getUserData = () => {
+  try {
+    const raw = localStorage.getItem('talya_user_data');
+    if (!raw || raw === 'undefined' || raw === 'null') return {};
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('Profile parse error, clearing corrupted data:', e);
+    localStorage.removeItem('talya_user_data');
+    return {};
   }
 };
 
 const getSystemPrompt = () => {
-  const data = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
-  return `Sen Talya'sın. PCOS'lu kadınlara şefkatle yaklaşan dijital bir yoldaşsın. Asla tıbbi teşhis koyma. Kullanıcının adı: "${data.name || 'Bahar'}", yaşam tarzı: "${data.lifestyle || 'Bilinmiyor'}", bütçesi: "${data.budget || 'Bilinmiyor'}", güncel döngü evresi: "${data.cyclePhase || 'Bilinmiyor'}". Tavsiyelerini bu gerçekliğe göre son derece kişiselleştir. Kullanıcı esnek/iyi bütçeli biriyse ona daha kaliteli malzemeli tarifler, kısıtlı bütçeli bir öğrenci veya ev hanımıysa evdeki malzemelerle yapılacak en ekonomik PCOS çözümleri sun. Kısa, motive edici, samimi konuş. Asla emir kipi kullanma.`;
+  const data = getUserData();
+  const cycleData = JSON.parse(localStorage.getItem('talya_cycle_sync') || '{}');
+  const lifeConditions = JSON.parse(localStorage.getItem('talya_life_conditions') || '{}');
+  
+  const currentPhase = cycleData.cyclePhase || data.cyclePhase || "Bilinmiyor";
+  const currentDay = cycleData.cycleDay || "Bilinmiyor";
+  const kitchen = data.kitchen || lifeConditions.kitchenType || "Belirtilmemiş";
+  const lifestyle = data.lifestyle || "Belirtilmemiş";
+  const diets = data.dietaryRestrictions && data.dietaryRestrictions.length > 0 ? data.dietaryRestrictions.join(', ') : 'Herhangi bir diyet/kısıtlama yok';
+  const goal = data.goal || "PCOS Yönetimi";
+  
+  return `Sen Talya'sın. PCOS'lu kadınlara şefkatle yaklaşan dijital bir yoldaşsın. Asla tıbbi teşhis koyma. 
+  Kullanıcının Adı: "${data.name}"
+  Yaşam Tarzı: "${lifestyle}"
+  Bütçesi: "${data.budget}"
+  Mutfak İmkanları: "${kitchen}"
+  Beslenme Kısıtlamaları: "${diets}"
+  Ana Hedefi: "${goal}"
+  Güncel Döngü Evresi: "${currentPhase}" (Gün: ${currentDay}). 
+
+  Tavsiyelerini bu gerçekliğe göre son derece kişiselleştir. Kullanıcı kısıtlı bütçeli bir "öğrenciyse", tarifleri yurt dostu, ucuz, pişirmesi pratik ve maksimum 20 dakikalık tut. Kullanıcı "ev hanımıysa" daha vakit isteyen kapsamlı ve detaylı ev tarifleri öner. Kullanıcının beslenme sınırlarına (allerjiler, vegan vs) KESİNLİKLE uy. Hedefi odaklı (Örn: Kas & Güç) ise öğünlerde ona destek ol. Döngü gününe ve evresine göre hormonları (östrojen/progesteron) destekleyecek tavsiyeler ver. Kısa, motive edici, samimi konuş. Asla emir kipi veya stres yaratıcı yargılayıcı kelimeler kullanma.`;
 };
 
 // 1. Home.jsx -> Sabah Motivasyon Mesajı
 export const fetchMotivation = async () => {
   const system = getSystemPrompt();
   const user = "Lütfen bana bugün bütçeme ve döngü evreme uygun, bana iyi hissettirecek, 3 cümleyi geçmeyen son derece samimi ve şefkatli bir sabah motivasyon mesajı yaz.";
-  return await getGroqResponse(system, user);
+  return await getGroqResponse(system, [], user);
+};
+
+const safeParseGroqJson = (rawResponse = '') => {
+  if (!rawResponse || typeof rawResponse !== 'string') return null;
+
+  // Prefer fenced JSON blocks if present.
+  const fenced = rawResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = fenced?.[1] ?? rawResponse;
+
+  // Best-effort: take the outermost JSON object.
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  const sliced = start >= 0 && end > start ? candidate.slice(start, end + 1) : candidate;
+
+  try {
+    return JSON.parse(sliced);
+  } catch {
+    // Common model mistakes: trailing commas and smart quotes.
+    const repaired = sliced
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/,\s*([}\]])/g, '$1');
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      return null;
+    }
+  }
 };
 
 // 2. Lifestyle.jsx -> Dynamic JSON API
@@ -56,15 +121,6 @@ export const fetchLifestylePlan = async (userData = {}) => {
   const budget = userData.budget || "Orta Halli";
   const cyclePhase = userData.cyclePhase || "Bilinmiyor";
   
-  let budgetInstruction = "";
-  if (budget.includes("Kısıtlı")) {
-    budgetInstruction = "DİKKAT: Kullanıcının bütçesi ÇOK KISITLI (Öğrenci Bütçesi). Kesinlikle somon, avokado, chia tohumu, kinoa, badem unu, kaju gibi pahalı ve lüks malzemeler YAZMA. Sadece yumurta, yulaf, mercimek, nohut, mevsim yeşillikleri, tavuk göğsü gibi son derece KENDİ BÜTÇESİNE UYGUN, ucuz ve ulaşılabilir malzemelerle harikalar yarat.";
-  } else if (budget.includes("Orta")) {
-    budgetInstruction = "Kullanıcının bütçesi ORTA HALLİ. Hem ekonomik malzemeleri hem de ara sıra ortalama fiyatlı malzemeleri dengeli kullan.";
-  } else {
-    budgetInstruction = "Kullanıcının bütçesi ESNEK/İYİ. Somon, avokado, badem unu, organik tohumlar gibi harika ve premium malzemeleri de içeren her türlü zengin içeriği rahatça kullanabilirsin.";
-  }
-
   const themes = [
     "Akdeniz usulü ferah, zeytinyağlı ve bol yeşillikli",
     "Çok pratik, tek tavada/tencerede pişen sıcak ev yemeği tarzı",
@@ -85,54 +141,53 @@ export const fetchLifestylePlan = async (userData = {}) => {
   const randomSeed = Math.floor(Math.random() * 1000000);
 
   const system = getSystemPrompt() + " SADECE GEÇERLİ BİR JSON FORMATI DÖNDÜR. MD kod parçacıkları kullanma, salt JSON döndür.";
-  const user = `Benim döngü evrem: ${cyclePhase}. Bütçe durumum: ${budget}.
+  
+const user = `Benim döngü evrem: ${cyclePhase}. Bütçe durumum: ${budget}.
 [SİSTEM ZARI: ${randomSeed} - Her üretimde tamamen yeni ve daha önce hiç akla gelmemiş özel bir kombinasyon yarat.]
-
-${budgetInstruction}
 
 LÜTFEN BU YENİLEMEDE TARİFLER İÇİN ŞU TEMAYA AĞIRLIK VER: "${randomTheme}".
 EGZERSİZLER İÇİN İSE ŞU TARZI BENİMSE: "${randomWorkout}".
 
-Yukarıdaki bütçe, döngü ve TEMA sınırlarına HARFİYEN uyarak; 4 adet detaylı yemek tarifi ve 3 adet egzersiz rutini üret. JSON şablonu tam olarak şu olmalı:
+Lütfen JSON formatında bütçeme, yaşam tarzıma ve döngü evreme %100 uygun, DAHA ÖNCE VERMEDİĞİN, tamamen YENİ 4 adet yemek tarifi ve TOPLAM 6 ADET BÜTÜNSEL EGZERSİZ RUTİNİ ver. 
+
+ÇOK ÖNEMLİ EGZERSİZ KURALI:
+1) Egzersiz dağılımı KESİNLİKLE şöyle olmalıdır: 2 adet "Yoga", 2 adet "Güç", 2 adet "Düşük Efor". 
+2) Göndereceğin her bir "workout" objesi ASLA tek bir atomic hareket (Örn: 'Ayakta Esneme', 'Karın Dayama') OLMAMALIDIR! 
+Her bir workout objesi 15-30 dakikalık tam teşekküllü, kapsamlı bir antrenman programı (Örn: 'Sabah Canlandırıcı Tüm Vücut Yogası', 'PCOS Terleten Kardiyo') olmalıdır. 
+İçindeki "movements" listesi ise bu antrenman programının içerdiği tekil hareketleri (Örn: Squat, Lunge, Kedi-İnek) barındırmalıdır. Bir rutinde en az 3-4 farklı hareket olmalı. Kullanıcı verisine harfiyen uy.
+
+Başka hiçbir metin ekleme. JSON şablonu tam olarak şu olmalı:
 {
-  "focus": "Günün yeni ve ilham verici odak mesajı",
+  "focus": "Günün yeni odak mesajı",
   "recipes": [
     { "id": 1, "title": "Türkçe Yemek Adı", "time": "25 dk", "cal": "380 kcal", "type": "Yüksek Protein", "ingredients": ["..."], "steps": ["..."] }
   ],
   "workouts": [
-    { "id": 5, "title": "Türkçe Egzersiz Adı", "time": "20 dk", "intensity": "Hafif", "type": "Yoga", "movements": [{ "name": "...", "desc": "..."}], "equipmentNote": "..." }
+    { "id": 5, "title": "Tüm Vücut Sabah Yogası (Örnek Tam Program)", "time": "20 dk", "intensity": "Hafif", "type": "Yoga", "movements": [{ "name": "Hareket 1", "desc": "Aciklamasi"}], "equipmentNote": "..." }
   ]
 }
-Recipe tipleri şunlardan biri olmalı: "Glütensiz", "Yüksek Protein", "Düşük Karb", "Tümü". Workout tipleri: "Düşük Efor", "Güç", "Yoga". Lütfen daha önce akla gelmeyen, yaratıcı ve Türk damak tadına / ev koşullarına uygun şefkatli rutinler ver.`;
-  
-  const rawResponse = await getGroqResponse(system, user);
+Recipe tipleri şunlardan biri olmalı: "Glütensiz", "Yüksek Protein", "Düşük Karb", "Tümü". Workout tipleri KESİNLİKLE şunlar olmalıdır: "Düşük Efor", "Güç", "Yoga".`;
+
+  const rawResponse = await getGroqResponse(system, [], user);
   
   try {
-    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-    const parseable = jsonMatch ? jsonMatch[0] : rawResponse;
-    return JSON.parse(parseable);
+    const parsed = safeParseGroqJson(rawResponse);
+    if (!parsed) throw new Error('Invalid JSON response');
+    return parsed;
   } catch (error) {
-    console.error("Lifestyle JSON Parse Error:", error);
+    console.warn("Lifestyle JSON Parse Error:", error);
     return null; // Signals fallback to the local static objects
   }
 };
 
 // 3. Calm.jsx -> Kriz Anı Chat (Crisis AI)
 export const sendCrisisMessage = async (history, message) => {
-  const system = getSystemPrompt() + " Şu an kullanıcı bir kriz (yeme atağı veya panik) yaşıyor olabilir. Onu yargılamadan dinle, ismini kullanarak şefkatle hitap et ve nefes egzersizine yönlendir.";
-  
-  const historyText = history.length > 0 ? "Önceki konuşmalar:\n" + history.map(h => `${h.isUser ? "Kullanıcı" : "Talya"}: ${h.text}`).join('\n') + "\n\n" : "";
-  const user = `${historyText}Kullanıcı: ${message}`;
-  
-  return await getGroqResponse(system, user);
+  const system = getSystemPrompt() + " Sen bir panik/kriz anı destek uzmanısın. Kullanıcı şu an anksiyete veya yeme atağı yaşıyor olabilir. Uzun paragraflar YAZMA. Sadece 1 veya 2 cümleyle ona güvende olduğunu hissettir ve ona odaklanması için basit bir nefes veya topraklanma sorusu sor (Örn: Etrafında mavi renkli 3 eşya sayabilir misin, yoksa birlikte derin bir nefes mi alalım?). Kullanıcıya direkt ismiyle, şefkatle hitap et.";
+  return await getGroqResponse(system, history, message);
 };
 
 // 4. Home.jsx -> Ask Talya Chat (General AI)
 export const sendGeneralMessage = async (history, message) => {
-  const system = getSystemPrompt() + " Kullanıcı sana genel yaşam tarzı, beslenme veya PCOS hakkında sorular soruyor olabilir. Kısa, öz, samimi ve motive edici yanıtlar ver.";
-  
-  const historyText = history.length > 0 ? "Önceki konuşmalar:\n" + history.map(h => `${h.isUser ? "Kullanıcı" : "Talya"}: ${h.text}`).join('\n') + "\n\n" : "";
-  const user = `${historyText}Kullanıcı: ${message}`;
-  
-  return await getGroqResponse(system, user);
+  const system = getSystemPrompt() + " Cevapların kesinlikle 3 cümleyi geçmesin. Maddeleme kullanman gerekirse çok kısa ve öz yap. Kullanıcıya her zaman ismiyle, çok samimi hitap et ve yargılamadan dinle.";
+  return await getGroqResponse(system, history, message);
 };

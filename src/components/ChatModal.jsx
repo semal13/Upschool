@@ -78,9 +78,13 @@ const ChatModal = ({ isOpen, onClose, title, subtitle, onSendMessage, initialMes
           ))}
           {isTyping && (
             <div className="flex justify-start fade-in">
-              <div className="bg-[#f8f5fb] dark:bg-slate-800 p-4 rounded-2xl rounded-tl-sm border border-[#4a3f5e]/5 dark:border-white/5 flex items-center gap-2 text-[#9B7EC9] dark:text-[#a78bfa]">
-                <Loader2 size={16} className="animate-spin" />
-                <span className="text-[13px] font-medium">Talya yazıyor...</span>
+              <div className="bg-[#f8f5fb] dark:bg-slate-800 py-3 px-5 rounded-2xl rounded-tl-sm border border-[#4a3f5e]/5 dark:border-white/5 flex flex-col gap-1 items-start">
+                <span className="text-[11px] font-bold text-[#9B7EC9] dark:text-[#a78bfa] mb-0.5">Talya düşünüyor</span>
+                <div className="flex space-x-1.5 items-center h-3">
+                   <div className="w-1.5 h-1.5 bg-[#D7B4F3] dark:bg-[#8B5CF6] rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                   <div className="w-1.5 h-1.5 bg-[#D7B4F3] dark:bg-[#8B5CF6] rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                   <div className="w-1.5 h-1.5 bg-[#D7B4F3] dark:bg-[#8B5CF6] rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
               </div>
             </div>
           )}

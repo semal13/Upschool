@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Activity, Coffee, Loader2, Sparkles, Droplets, Footprints } from 'lucide-react';
+import { Heart, Activity, Coffee, Loader2, Sparkles, Droplets, Footprints, Lightbulb } from 'lucide-react';
 import { fetchMotivation, sendGeneralMessage } from '../services/groqService';
+import { sendSymptomsToN8n } from '../services/n8nService';
 import ChatModal from '../components/ChatModal';
+
+const pcosTips = [
+  "PYS Sırrı 💧: Düzenli su içmek vücudun detoksifiye olmasını sağlar ve PCOS ödemini inanılmaz hızlı atar. Hedefin en az 2 litre olmalı!",
+  "Unutma 🌸: PCOS sadece kistlerle ilgili değildir; yönetilebilir bir hormon dengesizliğidir. Yalnız değilsin ve harika gidiyorsun.",
+  "Egzersiz Sırrı 🧘‍♀️: Her gün ağır efor sarfetmek PCOS'ta kortizolü artırarak zarar verebilir. Bazen en iyi antrenman sadece hafif bir yürüyüştür.",
+  "Uyku Gerçeği 🌙: Kaliteli 8 saatlik uyku, insülin direncinle savaşırken kullanabileceğin en ucuz ve en etkili ilaçtır.",
+  "Beslenme Sırrı 🍳: Kahvaltıda karbonhidrat yerine protein ağırlıklı beslenmek, tüm gün yaşayacağın o ani tatlı krizlerini bloke eder.",
+  "Stres Yönetimi 🌬️: Günde 5 dakikalık derin nefes egzersizi yapmak bile stres hormonlarını ciddi oranda düşürerek seni sakinleştirir."
+];
 
 const Home = () => {
   const navigate = useNavigate();
@@ -11,13 +21,27 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  // Tip Card
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+  const [isTipFading, setIsTipFading] = useState(false);
+
+  const handleNextTip = () => {
+    setIsTipFading(true);
+    setTimeout(() => {
+      setCurrentTipIndex(prev => (prev + 1) % pcosTips.length);
+      setIsTipFading(false);
+    }, 300);
+  };
+
+  const [isSendingMood, setIsSendingMood] = useState(false);
+  const [moodSent, setMoodSent] = useState(false);
+
   // Trackers States
   const [cycleDay, setCycleDay] = useState(14);
   const [isEditingCycle, setIsEditingCycle] = useState(false);
   const [tempCycle, setTempCycle] = useState(14);
   
   const [waterCount, setWaterCount] = useState(2); 
-  
   const [steps, setSteps] = useState(3450); 
   const [isEditingSteps, setIsEditingSteps] = useState(false);
   const [tempSteps, setTempSteps] = useState(3450);
@@ -27,6 +51,24 @@ const Home = () => {
     if (day <= 13) return 'Foliküler';
     if (day <= 15) return 'Ovülasyon';
     return 'Luteal';
+  };
+
+  const handleMoodQuickLog = async (mood) => {
+    if (moodSent) return;
+    setIsSendingMood(true);
+    
+    // YENİ: Save for the Journey Bridge Payload Injection
+    localStorage.setItem('talya_selected_mood', mood);
+
+    await sendSymptomsToN8n({ 
+      timestamp: new Date().toISOString(), 
+      moods: [mood], 
+      cycleStatus: "Hızlı Ekran Bildirimi",
+      nutrition: "Hızlı Mod Bildirimi",
+      painLevel: 1 
+    });
+    setIsSendingMood(false);
+    setMoodSent(true);
   };
 
   useEffect(() => {
@@ -55,6 +97,14 @@ const Home = () => {
       {/* Header */}
       <header className="mb-8 text-center pt-2">
         <h1 className="text-[28px] font-bold text-[#4a3f5e] dark:text-purple-50 mb-2 transition-colors duration-500">Merhaba, {userData.name}!</h1>
+        {userData.lifestyle && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-inner max-w-full">
+            <span className="text-[12px] font-bold text-[#8B5CF6] dark:text-[#a78bfa] whitespace-nowrap">Yaşam tarzın</span>
+            <span className="text-[12px] font-bold text-[#4a3f5e] dark:text-purple-50 break-words">
+              {userData.lifestyle}
+            </span>
+          </div>
+        )}
         
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 text-[#4a3f5e]/60 dark:text-purple-200/60 font-medium h-6">
@@ -67,37 +117,87 @@ const Home = () => {
           </p>
         )}
       </header>
+
+      {/* PCOS Tip of the Moment */}
+      <section className="mb-6 cursor-pointer group" onClick={handleNextTip}>
+        <div className="glass-card p-4 flex gap-4 items-center relative overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:shadow-purple-glow border border-[#D7B4F3]/30 dark:border-[#a78bfa]/20 shadow-sm">
+          <div className="bg-[#EAE2F3] dark:bg-slate-800 p-3 rounded-full text-[#9B7EC9] dark:text-[#a78bfa] shadow-inner shrink-0 group-hover:rotate-12 transition-transform duration-500">
+            <Lightbulb size={22} className={isTipFading ? 'scale-90 opacity-50' : 'scale-100 opacity-100 dark:drop-shadow-[0_0_8px_rgba(167,139,250,0.8)] transition-all'} />
+          </div>
+          <div className={`transition-opacity duration-300 text-left ${isTipFading ? 'opacity-0' : 'opacity-100'}`}>
+            <h3 className="text-[11px] font-bold text-[#8B5CF6] dark:text-[#a78bfa] uppercase tracking-wider mb-1">Günün İpucu</h3>
+            <p className="text-[13px] text-[#4a3f5e] dark:text-purple-50 font-medium leading-relaxed pr-2">
+              {pcosTips[currentTipIndex]}
+            </p>
+          </div>
+        </div>
+      </section>
       
       {/* Mood Check-In */}
       <section className="mb-5">
-        <div className="glass-card p-6">
-          <h3 className="font-bold text-[#4a3f5e] dark:text-slate-100 text-[15px] text-center mb-5">Nasılsın? 🤔</h3>
-          <div className="flex justify-between px-1">
-            <button className="flex flex-col items-center gap-2.5 group">
-              <div className="bg-[#FFF3CD] dark:bg-[#4b4324] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
-                <span className="text-2xl drop-shadow-sm">😞</span>
-              </div>
-              <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">Zorlanıyorum</span>
-            </button>
-            <button className="flex flex-col items-center gap-2.5 group">
-              <div className="bg-[#FFE2E2] dark:bg-[#422626] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
-                <span className="text-2xl drop-shadow-sm">😕</span>
-              </div>
-              <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">Düşük</span>
-            </button>
-            <button className="flex flex-col items-center gap-2.5 group">
-              <div className="bg-[#E2F0CB] dark:bg-[#2e4027] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
-                <span className="text-2xl drop-shadow-sm">😌</span>
-              </div>
-              <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">İyi</span>
-            </button>
-            <button className="flex flex-col items-center gap-2.5 group">
-              <div className="bg-[#FFEDD8] dark:bg-[#47301c] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
-                <span className="text-2xl drop-shadow-sm">😊</span>
-              </div>
-              <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">Harika</span>
-            </button>
-          </div>
+        <div className="glass-card p-6 min-h-[140px] flex flex-col justify-center">
+          <h3 className="font-bold text-[#4a3f5e] dark:text-slate-100 text-[15px] text-center mb-5">
+            {moodSent ? "Teşekkürler! 💜" : "Bugün nasılsın? 🤔"}
+          </h3>
+
+          {isSendingMood ? (
+             <div className="flex items-center justify-center py-2 fade-in">
+                <Loader2 size={28} className="animate-spin text-[#9B7EC9] dark:text-[#a78bfa]" />
+             </div>
+          ) : moodSent ? (
+             <div className="text-center text-[13px] font-medium text-[#4a3f5e]/70 dark:text-purple-200/70 fade-in">
+                Ruh halin günlük takibine işlendi.<br/>
+                <span 
+                  onClick={() => navigate('/journey')} 
+                  className="text-[#8B5CF6] font-bold cursor-pointer underline underline-offset-2 mt-2 inline-block"
+                >
+                  Detaylı Takip Formu
+                </span>
+             </div>
+          ) : (
+            <div className="flex justify-between px-1 fade-in">
+              <button 
+                onClick={() => handleMoodQuickLog('Zorlanıyorum')} 
+                disabled={isSendingMood}
+                className="flex flex-col items-center gap-2.5 group"
+              >
+                <div className="bg-[#FFF3CD] dark:bg-[#4b4324] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
+                  <span className="text-2xl drop-shadow-sm">😞</span>
+                </div>
+                <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">Zorlanıyorum</span>
+              </button>
+              <button 
+                onClick={() => handleMoodQuickLog('Düşük')} 
+                disabled={isSendingMood}
+                className="flex flex-col items-center gap-2.5 group"
+              >
+                <div className="bg-[#FFE2E2] dark:bg-[#422626] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
+                  <span className="text-2xl drop-shadow-sm">😕</span>
+                </div>
+                <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">Düşük</span>
+              </button>
+              <button 
+                onClick={() => handleMoodQuickLog('İyi')} 
+                disabled={isSendingMood}
+                className="flex flex-col items-center gap-2.5 group"
+              >
+                <div className="bg-[#E2F0CB] dark:bg-[#2e4027] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
+                  <span className="text-2xl drop-shadow-sm">😌</span>
+                </div>
+                <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">İyi</span>
+              </button>
+              <button 
+                onClick={() => handleMoodQuickLog('Harika')} 
+                disabled={isSendingMood}
+                className="flex flex-col items-center gap-2.5 group"
+              >
+                <div className="bg-[#FFEDD8] dark:bg-[#47301c] w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform cursor-pointer border border-white dark:border-white/10">
+                  <span className="text-2xl drop-shadow-sm">😊</span>
+                </div>
+                <span className="text-[11px] font-bold text-[#4a3f5e]/50 dark:text-purple-200/60">Harika</span>
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -174,7 +274,7 @@ const Home = () => {
       </section>
 
       {/* Action Plans */}
-      <section className="space-y-4 mb-4">
+      <section className="space-y-4 mb-5">
         <div onClick={() => navigate('/lifestyle')} className="glass-card p-5 flex items-center gap-4 hover:scale-[1.02] transition-transform cursor-pointer">
           <div className="bg-[#EAE2F3] dark:bg-slate-800 p-4 rounded-full text-[#9B7EC9] dark:text-[#a78bfa] shadow-sm">
             <Coffee size={24} />
@@ -195,6 +295,8 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+
 
       {/* Floating Ask Talya Button - Neon Lilac in dark mode */}
       <button 
