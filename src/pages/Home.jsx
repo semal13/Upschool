@@ -53,6 +53,13 @@ const Home = () => {
     return 'Luteal';
   };
 
+  const getTimeGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Günaydın';
+    if (hour >= 12 && hour < 18) return 'İyi günler';
+    return 'İyi akşamlar';
+  };
+
   const handleMoodQuickLog = async (mood) => {
     if (moodSent) return;
     setIsSendingMood(true);
@@ -96,7 +103,7 @@ const Home = () => {
     <div className="p-6 pt-12 min-h-screen pb-40 fade-in relative transition-colors duration-500">
       {/* Header */}
       <header className="mb-8 text-center pt-2">
-        <h1 className="text-[28px] font-bold text-[#4a3f5e] dark:text-purple-50 mb-2 transition-colors duration-500">Merhaba, {userData.name}!</h1>
+        <h1 className="text-[28px] font-bold text-[#4a3f5e] dark:text-purple-50 mb-2 transition-colors duration-500">{getTimeGreeting()}, {userData.name}!</h1>
         {userData.lifestyle && (
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-inner max-w-full">
             <span className="text-[12px] font-bold text-[#8B5CF6] dark:text-[#a78bfa] whitespace-nowrap">Yaşam tarzın</span>
@@ -314,7 +321,7 @@ const Home = () => {
         title="Talya"
         subtitle="Sana nasıl yardımcı olabilirim?"
         onSendMessage={sendGeneralMessage}
-        initialMessage={`Merhaba güzel insan! 💕 Sana bugün nasıl destek olabilirim?`}
+        initialMessage={`${getTimeGreeting()} güzel insan! 💕 Sana bugün nasıl destek olabilirim?`}
         isCrisis={false}
       />
     </div>

@@ -3,7 +3,7 @@ import { X, Settings, Sparkles, Check } from 'lucide-react';
 
 const DEFAULT_PROFILE = {
   name: '',
-  lifestyle: 'Öğrenci - Yurtta',
+  lifestyle: 'Öğrenci - Evde',
   kitchen: 'Tam Donanımlı',
   budget: 'Orta Halli',
   allergens: [],
@@ -177,7 +177,8 @@ const ProfileSettings = ({ isOpen, onClose }) => {
       kitchenType: mapKitchenToLifeConditions(profile.kitchen),
       budgetType: mapBudgetToLifeConditions(profile.budget)
     }));
-
+    // Notify pages in the same tab to refresh profile-dependent data.
+    window.dispatchEvent(new Event('profileUpdated'));
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);

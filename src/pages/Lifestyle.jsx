@@ -22,20 +22,6 @@ const GlassModal = ({ isOpen, onClose, children }) => {
 
 const Lifestyle = () => {
   const navigate = useNavigate();
-  const fallbackPlan = {
-    focus: "Tavsiyen Talya tarafından hazırlanıyor...",
-    recipes: [
-      { id: 1, title: "Anti-İnflamatuar Özel Kase", time: "25 dk", cal: "380 kcal", type: "Glütensiz", ingredients: ["Kinoa", "Ispanak", "Avokado", "Ceviz", "Zeytinyağı"], steps: ["Kinoayı haşla.", "Tüm malzemeleri derin kasede birleştir.", "Üzerine zeytinyağı gezdir ve taze yeşilliklerle servis et."] },
-      { id: 2, title: "Orman Meyveli Smoothie", time: "5 dk", cal: "220 kcal", type: "Yüksek Protein", ingredients: ["Orman Meyveleri", "Yarım Muz", "Badem Sütü", "Chia Tohumu"], steps: ["Tüm meyveleri ve sütü rondodan pürüzsüz olana dek geçir.", "Üzerine chia tohumu ekleyerek tüket."] },
-      { id: 3, title: "Pratik Protein Salatası", time: "15 dk", cal: "350 kcal", type: "Yüksek Protein", ingredients: ["Nohut", "Kırmızı Biber", "Limon", "Dereotu"], steps: ["Nohutları süz.", "Otlarla harmanla."] },
-      { id: 4, title: "Altın Süt", time: "10 dk", cal: "120 kcal", type: "Düşük Karb", ingredients: ["Badem Sütü", "Toz Zerdeçal", "Karabiber", "Tarçın"], steps: ["Sütü ısıt.", "Baharatları ekleyip çırpıcıyla köpürt."] }
-    ],
-    workouts: [
-      { id: 5, title: "Sabah Yoga Akışı", time: "20 dk", intensity: "Hafif", type: "Yoga", movements: [{name: "Aşağı Bakan Köpek", desc: "Omurgayı esnet ve bedeni uzat."}, {name: "Çocuk Duruşu", desc: "Sırtı rahatlat."}], equipmentNote: "Yoga matı" },
-      { id: 6, title: "PCOS Güç ve Direnç", time: "35 dk", intensity: "Orta", type: "Güç", movements: [{name: "Squat", desc: "15 tekrar, sırt dik."}, {name: "Glute Bridge", desc: "Kalçayı sıkarak yukarı it."}], equipmentNote: "Mat" },
-      { id: 7, title: "Rahatlatıcı Esneme", time: "15 dk", intensity: "Hafif", type: "Düşük Efor", movements: [{name: "Kedi-İnek", desc: "10 tekrar omurga esnemesi."}, {name: "Oturarak Öne Eğilme", desc: "Lifleri uzat."}], equipmentNote: "Sadece bedenin" }
-    ]
-  };
 
   const [activeTab, setActiveTab] = useState('recipes'); 
   const [activeFilter, setActiveFilter] = useState('Tümü');
@@ -44,7 +30,14 @@ const Lifestyle = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dailyPlan, setDailyPlan] = useState(null);
 
-  const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('talya_favorites') || '[]'));
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('talya_favorites') || '[]');
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  });
   
   // Feedback System for ML Loop
   const [feedbacks, setFeedbacks] = useState(() => JSON.parse(localStorage.getItem('talya_feedbacks') || '[]'));
@@ -99,10 +92,15 @@ const Lifestyle = () => {
     return tags;
   };
 
+  const getFavoriteKey = (item, isRecipe) => `${isRecipe ? 'recipe' : 'workout'}:${item.id}:${item.title}`;
+
   const toggleFavorite = (item, isRecipe) => {
+    const favKey = getFavoriteKey(item, isRecipe);
     setFavorites(prev => {
-      const exists = prev.some(f => f.title === item.title);
-      const newFavs = exists ? prev.filter(f => f.title !== item.title) : [...prev, { ...item, isRecipe }];
+      const exists = prev.some(f => f.favKey === favKey);
+      const newFavs = exists
+        ? prev.filter(f => f.favKey !== favKey)
+        : [...prev, { ...item, isRecipe, favKey }];
       localStorage.setItem('talya_favorites', JSON.stringify(newFavs));
       return newFavs;
     });
@@ -130,26 +128,29 @@ const Lifestyle = () => {
     return data.budget || 'Orta Halli';
   });
 
-  const fetchNewPlan = async (overrideBudget = currentBudget) => {
+  const fetchNewPlan = async (overrideProfile = null) => {
     setIsLoading(true);
     setPlan(null); // Şık iskelet ekranı devreye girsin diye temizle
 
     try {
       const data = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
-      if (overrideBudget !== data.budget) {
-        data.budget = overrideBudget;
+      if (typeof overrideProfile === 'string') {
+        // Backward compatibility: only budget override.
+        if (overrideProfile !== data.budget) {
+          data.budget = overrideProfile;
+          localStorage.setItem('talya_user_data', JSON.stringify(data));
+        }
+      } else if (overrideProfile && typeof overrideProfile === 'object') {
+        Object.assign(data, overrideProfile);
         localStorage.setItem('talya_user_data', JSON.stringify(data));
       }
+      setCurrentBudget(data.budget || 'Orta Halli');
       
       const fetchedPlan = await fetchLifestylePlan(data);
-      if (fetchedPlan && fetchedPlan.recipes && fetchedPlan.workouts) {
-        setPlan(fetchedPlan);
-      } else {
-        setPlan(fallbackPlan);
-      }
+      setPlan(fetchedPlan);
     } catch (e) {
       console.error(e);
-      setPlan(fallbackPlan);
+      setPlan(await fetchLifestylePlan(JSON.parse(localStorage.getItem('talya_user_data') || '{}')));
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +159,6 @@ const Lifestyle = () => {
   useEffect(() => {
     fetchNewPlan();
     
-    // YENİ: Journey formundan gelen n8n analiz dosyasını yükle
     const savedPlan = localStorage.getItem('talya_daily_plan');
     if (savedPlan) {
       try {
@@ -168,8 +168,14 @@ const Lifestyle = () => {
       }
     }
     
-    // YENİ: Set Daily Random Tip
     setDailyTip(TIPS[Math.floor(Math.random() * TIPS.length)]);
+  
+    const handler = () => {
+      const latest = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
+      fetchNewPlan(latest);
+    };
+    window.addEventListener('profileUpdated', handler);
+    return () => window.removeEventListener('profileUpdated', handler);
   }, []);
 
   const handleBudgetChange = (newBudget) => {
@@ -429,7 +435,7 @@ const Lifestyle = () => {
                 onClick={(e) => { e.stopPropagation(); toggleFavorite(activeItem, activeItem.isRecipe); }}
                 className="p-2.5 text-pink-500 hover:scale-110 active:scale-95 transition-all bg-pink-50 dark:bg-pink-900/30 rounded-full shadow-sm flex-shrink-0 border border-pink-100 dark:border-pink-800/50"
               >
-                 <Heart size={20} fill={favorites.some(f => f.title === activeItem.title) ? "currentColor" : "none"} />
+                 <Heart size={20} fill={favorites.some(f => f.favKey === getFavoriteKey(activeItem, activeItem.isRecipe)) ? "currentColor" : "none"} />
               </button>
             </div>
 
