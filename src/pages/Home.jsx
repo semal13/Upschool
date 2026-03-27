@@ -79,7 +79,7 @@ const Home = () => {
   };
 
   useEffect(() => {
-    const data = localStorage.getItem('talya_user_data');
+    const data = localStorage.getItem('talya:user-profile');
     if (data) {
       const parsed = JSON.parse(data);
       setUserData(parsed);

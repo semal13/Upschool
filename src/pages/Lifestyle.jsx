@@ -124,7 +124,7 @@ const Lifestyle = () => {
 
   // Zeki bağlam kontrolü: Kullanıcı durumu anlık değişebilir (Örn: Yurda döndü)
   const [currentBudget, setCurrentBudget] = useState(() => {
-    const data = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
+    const data = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
     return data.budget || 'Orta Halli';
   });
 
@@ -133,16 +133,16 @@ const Lifestyle = () => {
     setPlan(null); // Şık iskelet ekranı devreye girsin diye temizle
 
     try {
-      const data = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
+      const data = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
       if (typeof overrideProfile === 'string') {
         // Backward compatibility: only budget override.
         if (overrideProfile !== data.budget) {
           data.budget = overrideProfile;
-          localStorage.setItem('talya_user_data', JSON.stringify(data));
+          localStorage.setItem('talya:user-profile', JSON.stringify(data));
         }
       } else if (overrideProfile && typeof overrideProfile === 'object') {
         Object.assign(data, overrideProfile);
-        localStorage.setItem('talya_user_data', JSON.stringify(data));
+        localStorage.setItem('talya:user-profile', JSON.stringify(data));
       }
       setCurrentBudget(data.budget || 'Orta Halli');
       
@@ -150,7 +150,7 @@ const Lifestyle = () => {
       setPlan(fetchedPlan);
     } catch (e) {
       console.error(e);
-      setPlan(await fetchLifestylePlan(JSON.parse(localStorage.getItem('talya_user_data') || '{}')));
+      setPlan(await fetchLifestylePlan(JSON.parse(localStorage.getItem('talya:user-profile') || '{}')));
     } finally {
       setIsLoading(false);
     }
@@ -171,7 +171,7 @@ const Lifestyle = () => {
     setDailyTip(TIPS[Math.floor(Math.random() * TIPS.length)]);
   
     const handler = () => {
-      const latest = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
+      const latest = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
       fetchNewPlan(latest);
     };
     window.addEventListener('profileUpdated', handler);

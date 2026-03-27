@@ -77,7 +77,7 @@ const Onboarding = ({ onComplete }) => {
     e.preventDefault();
     if (!formData.name) return;
     
-    localStorage.setItem('talya_user_data', JSON.stringify({
+    localStorage.setItem('talya:user-profile', JSON.stringify({
       name: formData.name,
       lifestyle: formData.lifestyle,
       kitchen: formData.kitchen,
@@ -91,23 +91,6 @@ const Onboarding = ({ onComplete }) => {
       kitchenType: mapKitchenToLifeConditions(formData.kitchen),
       budgetType: mapBudgetToLifeConditions(formData.budget)
     }));
-    const lifeConditions = JSON.parse(
-      localStorage.getItem('talya_life_conditions') || '{"kitchenType":"full","budgetType":"standard"}'
-    );
-    localStorage.setItem(
-      'userProfile',
-      JSON.stringify({
-        name: formData.name,
-        lifestyle: formData.lifestyle,
-        kitchen: lifeConditions.kitchenType ?? null,
-        budget: formData.budget,
-        dietaryRestrictions: formData.dietaryRestrictions ?? [],
-        goal: formData.goal ?? null,
-        symptoms: formData.symptoms ?? [],
-        cycleLength: formData.cycleLength ?? null,
-        lastPeriodDate: formData.lastPeriodDate ?? null
-      })
-    );
     onComplete();
   };
 

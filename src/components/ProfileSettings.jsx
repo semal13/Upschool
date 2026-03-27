@@ -140,7 +140,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!isOpen) return;
     try {
-      const raw = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
+      const raw = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
       setProfile(normalizeProfile(raw));
     } catch {
       setProfile(DEFAULT_PROFILE);
@@ -172,7 +172,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
       cyclePhase: profile.cyclePhase
     };
 
-    localStorage.setItem('talya_user_data', JSON.stringify({ ...next, allergens: profile.allergens || [] }));
+    localStorage.setItem('talya:user-profile', JSON.stringify({ ...next, allergens: profile.allergens || [] }));
     localStorage.setItem('talya_life_conditions', JSON.stringify({
       kitchenType: mapKitchenToLifeConditions(profile.kitchen),
       budgetType: mapBudgetToLifeConditions(profile.budget)

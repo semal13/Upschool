@@ -110,7 +110,7 @@ const Journey = () => {
     setIsLoading(true);
     setN8nResult(null);
 
-    const userData = JSON.parse(localStorage.getItem('talya_user_data') || '{}');
+    const userData = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
     const cycleData = JSON.parse(localStorage.getItem('talya_cycle_sync') || '{}');
 
     const injectionPrompt = `User feels: ${selectedMoods.join(', ')}. Please adjust the 'analysis' part of your response to be empathetic to this specific mood. Also note their lifestyle is ${userData.lifestyle || 'unknown'} and budget is ${userData.budget || 'unknown'}.`;

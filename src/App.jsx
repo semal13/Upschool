@@ -21,7 +21,7 @@ const App = () => {
       setShowSplash(false);
     }, 1500);
 
-    const data = localStorage.getItem('talya_user_data');
+    const data = localStorage.getItem('talya:user-profile');
     if (data) {
       setHasCompletedOnboarding(true);
     }
