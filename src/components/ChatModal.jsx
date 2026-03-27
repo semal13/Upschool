@@ -22,17 +22,22 @@ const ChatModal = ({ isOpen, onClose, title, subtitle, onSendMessage, initialMes
   if (!isOpen) return null;
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isTyping) return;
 
     const userMsg = input.trim();
     setMessages(prev => [...prev, { text: userMsg, isUser: true }]);
     setInput('');
     setIsTyping(true);
 
-    const reply = await onSendMessage(messages, userMsg);
-    
-    setIsTyping(false);
-    setMessages(prev => [...prev, { text: reply, isUser: false }]);
+    try {
+      const reply = await onSendMessage(messages, userMsg);
+      setMessages(prev => [...prev, { text: reply || "Şu an yanıt oluşturamadım, tekrar deneyelim mi? 💜", isUser: false }]);
+    } catch (err) {
+      console.error("Chat hatası:", err);
+      setMessages(prev => [...prev, { text: "Bir anlığına bağlantım koptu ama seninleyim. Tekrar yazar mısın? 💜", isUser: false }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyDown = (e) => {

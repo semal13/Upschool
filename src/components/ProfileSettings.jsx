@@ -177,6 +177,11 @@ const ProfileSettings = ({ isOpen, onClose }) => {
       kitchenType: mapKitchenToLifeConditions(profile.kitchen),
       budgetType: mapBudgetToLifeConditions(profile.budget)
     }));
+    
+    // YENİ: Profil güncellendiğinde eski cache'leri temizle ki AI yeni profile göre yeniden üretsin!
+    localStorage.removeItem('talya_last_lifestyle_plan');
+    localStorage.removeItem('talya_daily_plan');
+
     // Notify pages in the same tab to refresh profile-dependent data.
     window.dispatchEvent(new Event('profileUpdated'));
     setShowToast(true);

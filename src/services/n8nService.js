@@ -1,8 +1,9 @@
 export const sendSymptomsToN8n = async (symptomsData) => {
   const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
-  const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-  const payload = { ...symptomsData, userProfile };
   
+  // symptomsData already contains the fully structured userProfile from Journey.jsx
+  const payload = { ...symptomsData };
+
   if (!webhookUrl || webhookUrl.includes('[') || !webhookUrl.startsWith('http')) {
     console.warn("n8n Webhook URL bulunamadı veya placeholder (geçersiz), mock veri dönülüyor.");
     // Simulate network delay for UI feedback
@@ -68,7 +69,10 @@ export const sendSymptomsToN8n = async (symptomsData) => {
       body: JSON.stringify(payload)
     });
     
-    if (!response.ok) throw new Error('Ağ hatası (n8n bağlanamadı)');
+    if (!response.ok) {
+      if(response.status === 404) throw new Error('n8n Webhook bulunamadı (URL hatalı veya webhook-test süresi dolmuş)');
+      throw new Error(`Ağ hatası: n8n sunucusu ${response.status} döndürdü`);
+    }
     const data = await response.json();
     return {
       success: true,
@@ -82,7 +86,10 @@ export const sendSymptomsToN8n = async (symptomsData) => {
     console.error("n8n Servis Hatası:", error);
     return {
       success: false,
-      advice: "Şu an analiz sistemine bağlanamıyorum ama merak etme, verilerini günlüğüne kaydettim."
+      analysis: `Şu an analiz sistemine bağlanamıyorum (${error.message}). Lütfen n8n webhook URL'sini (webhook-test yerine webhook) kontrol edin veya Gemini API limitinizin dolmadığından emin olun.`,
+      recipe: null,
+      tea: "Papatya Çayı (Sakinleştirici)",
+      workout: "Nefes Egzersizi"
     };
   }
 };

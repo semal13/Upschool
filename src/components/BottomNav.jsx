@@ -7,7 +7,7 @@ const BottomNav = () => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/', icon: Home, label: 'Home' },
+    { path: '/home', icon: Home, label: 'Home' },
     { path: '/calm', icon: Heart, label: 'Calm' },
     { path: '/lifestyle', icon: Coffee, label: 'Lifestyle' },
     { path: '/journey', icon: BarChart2, label: 'Journey' },
@@ -17,7 +17,7 @@ const BottomNav = () => {
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[340px] z-50 px-2 transition-all">
       <div className="glass-nav flex justify-between items-center px-4 py-3 shadow-[0_10px_40px_-10px_rgba(131,115,155,0.2)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.4)]">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || (location.pathname === '/' && item.path === '/home') || (location.pathname === '/home' && item.path === '/');
+          const isActive = location.pathname === item.path;
           const Icon = item.icon;
           
           return (
