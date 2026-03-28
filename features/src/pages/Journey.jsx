@@ -142,9 +142,38 @@ const Journey = () => {
     
     // YENİ: Başarılı AI sonuçlarını Lifestyle'a aktarmak için Cache'le!
     if (result && result.recipe && result.workout) {
+      const workoutNorm =
+        typeof result.workout === "string"
+          ? {
+              title: result.workout,
+              desc: result.workout,
+              id: "journey-daily-workout",
+              time: "—",
+              intensity: "Hafif",
+              type: "Düşük Efor",
+              movements: [],
+              equipmentNote: "Journey’den önerilen rutin.",
+            }
+          : {
+              ...result.workout,
+              desc:
+                result.workout.desc ||
+                result.workout.title ||
+                "",
+              movements: Array.isArray(result.workout.movements)
+                ? result.workout.movements
+                : [],
+            };
+      const recipeNorm = {
+        ...result.recipe,
+        desc:
+          result.recipe.desc ||
+          (Array.isArray(result.recipe.steps) && result.recipe.steps[0]) ||
+          "",
+      };
       localStorage.setItem('talya_daily_plan', JSON.stringify({
-        recipe: result.recipe,
-        workout: result.workout,
+        recipe: recipeNorm,
+        workout: workoutNorm,
         date: new Date().toISOString()
       }));
       
@@ -363,6 +392,11 @@ const Journey = () => {
         </form>
       ) : (
         <div className="space-y-6 slide-up relative z-10 transition-colors">
+          {n8nResult.success === false && (
+            <div className="glass-card p-4 border border-rose-200 dark:border-rose-900/50 bg-rose-50/90 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100 text-[13px] font-medium leading-relaxed">
+              Bu analiz tamamlanamadı (strict mod veya n8n hatası). Metin aşağıda; webhook URL ve workflow çıktısını kontrol et.
+            </div>
+          )}
           <div className="glass-card p-6 border border-[#D7B4F3]/50 dark:border-[#8B5CF6]/30 overflow-hidden relative group">
             <div className="absolute top-0 right-0 w-40 h-40 bg-pink-300/10 dark:bg-fuchsia-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
             

@@ -1,7 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Loader2, Dumbbell, ChefHat, Clock, Flame, RefreshCcw, Sparkles, Heart } from 'lucide-react';
 import { fetchLifestylePlan } from '../services/groqService';
+import { isStrictNoFallback } from '../lib/envFlags.js';
+
+/** Journey / n8n bazen workout'u düz string döndürür; Lifestyle kartı + modal nesne bekler. */
+const normalizeDailyRecipe = (r) => {
+  if (!r || typeof r !== "object") return null;
+  const desc =
+    (typeof r.desc === "string" && r.desc.trim()) ||
+    (Array.isArray(r.steps) && r.steps[0]) ||
+    (Array.isArray(r.ingredients) && r.ingredients.length
+      ? `${r.ingredients.slice(0, 2).join(", ")}…`
+      : "") ||
+    "Journey analizinden gelen günlük tarif.";
+  return { ...r, desc };
+};
+
+const normalizeDailyWorkout = (w) => {
+  if (w == null) return null;
+  if (typeof w === "string") {
+    const t = w.trim() || "Günlük egzersiz önerisi";
+    return {
+      id: "journey-daily-workout",
+      title: t,
+      desc: t,
+      time: "—",
+      intensity: "Hafif",
+      type: "Düşük Efor",
+      movements: [],
+      equipmentNote: "Journey’den önerilen rutin.",
+    };
+  }
+  const title = w.title || "Egzersiz";
+  return {
+    ...w,
+    title,
+    desc: (typeof w.desc === "string" && w.desc) || title,
+    movements: Array.isArray(w.movements) ? w.movements : [],
+    equipmentNote: w.equipmentNote ?? "—",
+    time: w.time ?? "—",
+    intensity: w.intensity ?? "Hafif",
+  };
+};
 
 const GlassModal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
@@ -22,11 +63,13 @@ const GlassModal = ({ isOpen, onClose, children }) => {
 
 const Lifestyle = () => {
   const navigate = useNavigate();
+  const isFetchingRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState('recipes'); 
   const [activeFilter, setActiveFilter] = useState('Tümü');
   const [activeItem, setActiveItem] = useState(null); 
   const [plan, setPlan] = useState(null);
+  const [planError, setPlanError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dailyPlan, setDailyPlan] = useState(null);
 
@@ -129,8 +172,11 @@ const Lifestyle = () => {
   });
 
   const fetchNewPlan = async (overrideProfile = null) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setIsLoading(true);
-    setPlan(null); // Şık iskelet ekranı devreye girsin diye temizle
+    setPlan(null);
+    setPlanError(null);
 
     try {
       const data = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
@@ -147,18 +193,46 @@ const Lifestyle = () => {
       setCurrentBudget(data.budget || 'Orta Halli');
       
       const fetchedPlan = await fetchLifestylePlan(data);
-      setPlan(fetchedPlan);
+      if (fetchedPlan == null) {
+        setPlan(null);
+        setPlanError(
+          isStrictNoFallback()
+            ? "Strict mod açık: Groq geçerli JSON plan döndürmedi. VITE_GROQ_API_KEY, VITE_GROQ_MODEL ve bağlantını kontrol et."
+            : "Plan yüklenemedi. Sayfayı yenileyip tekrar dene."
+        );
+      } else {
+        setPlan(fetchedPlan);
+      }
     } catch (e) {
       console.error(e);
-      setPlan(await fetchLifestylePlan(JSON.parse(localStorage.getItem('talya:user-profile') || '{}')));
+      try {
+        const retry = await fetchLifestylePlan(
+          JSON.parse(localStorage.getItem('talya:user-profile') || '{}')
+        );
+        if (retry == null) {
+          setPlan(null);
+          setPlanError(
+            isStrictNoFallback()
+              ? "Strict mod: plan servisi hata verdi. Konsoldaki ayrıntıya bak."
+              : "Plan yüklenemedi."
+          );
+        } else {
+          setPlan(retry);
+        }
+      } catch (e2) {
+        console.error(e2);
+        setPlan(null);
+        setPlanError("Plan yüklenirken beklenmeyen bir hata oluştu.");
+      }
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
   useEffect(() => {
     fetchNewPlan();
-    
+
     const savedPlan = localStorage.getItem('talya_daily_plan');
     if (savedPlan) {
       try {
@@ -167,10 +241,11 @@ const Lifestyle = () => {
         console.error(e);
       }
     }
-    
+
     setDailyTip(TIPS[Math.floor(Math.random() * TIPS.length)]);
-  
+
     const handler = () => {
+      if (isFetchingRef.current) return;
       const latest = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
       fetchNewPlan(latest);
     };
@@ -202,6 +277,15 @@ const Lifestyle = () => {
         ? plan.recipes.filter(r => activeFilter === 'Tümü' || r.type === activeFilter)
         : plan.workouts.filter(w => activeFilter === 'Tümü' || w.type === activeFilter)
   ) : [];
+
+  const journeyDailyRecipe = dailyPlan?.recipe ? normalizeDailyRecipe(dailyPlan.recipe) : null;
+  const journeyDailyWorkout = dailyPlan?.workout ? normalizeDailyWorkout(dailyPlan.workout) : null;
+  const hasJourneyDailyCard =
+    !!dailyPlan &&
+    ((activeTab === "recipes" && journeyDailyRecipe) ||
+      (activeTab === "workouts" && journeyDailyWorkout));
+  const journeyDailyItemForTab =
+    activeTab === "recipes" ? journeyDailyRecipe : journeyDailyWorkout;
 
   return (
     <div className="p-6 pt-12 min-h-screen pb-40 fade-in relative transition-colors duration-500">
@@ -299,14 +383,14 @@ const Lifestyle = () => {
             <Sparkles size={16} className="text-[#8B5CF6]" /> Sana Özel Günlük Öneriler
          </h2>
          
-         {dailyPlan && ((activeTab === 'recipes' && dailyPlan.recipe) || (activeTab === 'workouts' && dailyPlan.workout)) ? (
+         {hasJourneyDailyCard ? (
            <div 
              onClick={() => setActiveItem({ 
-               ...(activeTab === 'recipes' ? dailyPlan.recipe : dailyPlan.workout), 
+               ...journeyDailyItemForTab, 
                isRecipe: activeTab === 'recipes',
-               time: "10 dk", // Placeholder UI padding
-               cal: "250 kcal",
-               intensity: "Hafif"
+               time: journeyDailyItemForTab?.time || "10 dk",
+               cal: activeTab === 'recipes' ? (journeyDailyItemForTab?.cal || "250 kcal") : undefined,
+               intensity: journeyDailyItemForTab?.intensity || "Hafif"
              })}
              className="glass-card p-5 border-2 border-[#8B5CF6]/40 dark:border-[#a78bfa]/30 relative overflow-hidden group cursor-pointer shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:scale-[1.02] transition-all duration-500"
            >
@@ -319,10 +403,10 @@ const Lifestyle = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-[16px] text-[#4a3f5e] dark:text-slate-100 truncate pr-2">
-                     {activeTab === 'recipes' ? dailyPlan.recipe.title : dailyPlan.workout.title}
+                     {journeyDailyItemForTab?.title}
                   </h3>
                   <p className="text-[12px] text-[#4a3f5e]/80 dark:text-purple-100/90 font-medium leading-relaxed line-clamp-2 mt-0.5">
-                     {activeTab === 'recipes' ? dailyPlan.recipe.desc : dailyPlan.workout.desc}
+                     {journeyDailyItemForTab?.desc}
                   </p>
                 </div>
              </div>
@@ -345,6 +429,17 @@ const Lifestyle = () => {
            <Heart size={48} className="text-pink-300 dark:text-pink-900/50 mb-3" />
            <p className="text-[14px] font-medium text-[#4a3f5e] dark:text-purple-200">Henüz hiç {activeTab === 'recipes' ? 'tarif' : 'egzersiz'} favorilemedin.</p>
          </div>
+      ) : planError && !isLoading ? (
+        <div className="glass-card p-6 border border-amber-200/80 dark:border-amber-800/40 bg-amber-50/80 dark:bg-amber-950/30 text-center space-y-4">
+          <p className="text-[14px] font-medium text-amber-950 dark:text-amber-100 leading-relaxed">{planError}</p>
+          <button
+            type="button"
+            onClick={() => fetchNewPlan(currentBudget)}
+            className="w-full bg-[#8B5CF6] text-white font-bold py-3 rounded-full text-[14px] hover:opacity-95 transition-opacity"
+          >
+            Yeniden dene
+          </button>
+        </div>
       ) : isLoading || !plan ? (
         <div className="space-y-4">
           {/* Skeleton Loaders matching the List Layout */}

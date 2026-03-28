@@ -1,3 +1,5 @@
+import { isStrictNoFallback } from "../lib/envFlags.js";
+
 export const sendSymptomsToN8n = async (symptomsData) => {
   const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
   
@@ -5,6 +7,16 @@ export const sendSymptomsToN8n = async (symptomsData) => {
   const payload = { ...symptomsData };
 
   if (!webhookUrl || webhookUrl.includes('[') || !webhookUrl.startsWith('http')) {
+    if (isStrictNoFallback()) {
+      return {
+        success: false,
+        analysis:
+          "Strict mod: n8n webhook tanımlı değil. .env içinde geçerli bir VITE_N8N_WEBHOOK_URL ayarla (http/https ile başlamalı, placeholder olmamalı).",
+        recipe: null,
+        tea: "",
+        workout: null,
+      };
+    }
     console.warn("n8n Webhook URL bulunamadı veya placeholder (geçersiz), mock veri dönülüyor.");
     // Simulate network delay for UI feedback
     await new Promise(res => setTimeout(res, 2500));
@@ -102,20 +114,28 @@ export const getCommunityMessages = async () => {
     { id: 3, text: "Küçük adımlar, büyük zaferler!", author: "Anonim", time: "1 gün önce" },
     { id: 4, text: "PCOS'un bizi tanımlamasına izin vermeyelim 🌸", author: "Anonim", time: "2 gün önce" }
   ];
-  if (!url || url.includes('[') || !url.startsWith('http')) return defaults;
+  if (!url || url.includes('[') || !url.startsWith('http')) {
+    return isStrictNoFallback() ? [] : defaults;
+  }
   
   try {
      const res = await fetch(url);
      const data = await res.json();
-     return data.messages && data.messages.length > 0 ? data.messages : defaults;
+     const list = Array.isArray(data.messages) ? data.messages : [];
+     if (list.length > 0) return list;
+     return isStrictNoFallback() ? [] : defaults;
   } catch (e) {
-     return defaults;
+     return isStrictNoFallback() ? [] : defaults;
   }
 };
 
 export const postCommunityMessage = async (text) => {
   const url = import.meta.env.VITE_N8N_MESSAGE_POST_URL;
-  if (!url || url.includes('[') || !url.startsWith('http')) return { success: true };
+  if (!url || url.includes('[') || !url.startsWith('http')) {
+    return isStrictNoFallback()
+      ? { success: false, error: "VITE_N8N_MESSAGE_POST_URL tanımlı değil." }
+      : { success: true };
+  }
   
   try {
      const res = await fetch(url, {
