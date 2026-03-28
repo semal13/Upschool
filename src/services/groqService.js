@@ -12,9 +12,9 @@ export const getGroqResponse = async (systemPrompt, messageHistoryArray = [], cu
 
   if (!apiKey) {
     console.error(
-      "API Key bulunamadı! Lütfen .env dosyasına VITE_GROQ_API_KEY ekle."
+      "Groq API anahtarı bulunamadı (.env içinde VITE_GROQ_API_KEY)."
     );
-    return "Groq API anahtarı eksik. Lütfen .env dosyana VITE_GROQ_API_KEY ekle (console.groq.com). 💜";
+    return "Groq API anahtarı eksik. Proje kökündeki .env dosyana anahtarını ekle (console.groq.com → API keys). 💜";
   }
 
   const history = (messageHistoryArray || []).map((msg) => ({

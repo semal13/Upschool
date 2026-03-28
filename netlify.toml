@@ -1,0 +1,15 @@
+# Netlify — Vite + React Router (SPA)
+# Site settings’te Build command / Publish yoksa bu dosya kullanılır.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Doğrudan /lifestyle gibi adresler ve yenilemede 404 olmasın
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

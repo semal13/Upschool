@@ -11,7 +11,7 @@ export const sendSymptomsToN8n = async (symptomsData) => {
       return {
         success: false,
         analysis:
-          "Strict mod: n8n webhook tanımlı değil. .env içinde geçerli bir VITE_N8N_WEBHOOK_URL ayarla (http/https ile başlamalı, placeholder olmamalı).",
+          "Strict mod: n8n webhook adresi tanımlı değil. .env dosyanda Journey için geçerli bir HTTPS webhook URL’si ayarla (placeholder bırakma).",
         recipe: null,
         tea: "",
         workout: null,
@@ -133,7 +133,7 @@ export const postCommunityMessage = async (text) => {
   const url = import.meta.env.VITE_N8N_MESSAGE_POST_URL;
   if (!url || url.includes('[') || !url.startsWith('http')) {
     return isStrictNoFallback()
-      ? { success: false, error: "VITE_N8N_MESSAGE_POST_URL tanımlı değil." }
+      ? { success: false, error: "Topluluk mesajı gönderme URL’i .env içinde tanımlı değil." }
       : { success: true };
   }
   

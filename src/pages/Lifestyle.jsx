@@ -197,7 +197,7 @@ const Lifestyle = () => {
         setPlan(null);
         setPlanError(
           isStrictNoFallback()
-            ? "Strict mod açık: Groq geçerli JSON plan döndürmedi. VITE_GROQ_API_KEY, VITE_GROQ_MODEL ve bağlantını kontrol et."
+            ? "Strict mod açık: Groq geçerli JSON plan döndürmedi. .env içindeki Groq anahtarını ve model adını kontrol et; internet bağlantına da bak."
             : "Plan yüklenemedi. Sayfayı yenileyip tekrar dene."
         );
       } else {
