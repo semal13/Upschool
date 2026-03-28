@@ -1,0 +1,25 @@
+# Netlify — Vite + React Router (SPA)
+# Site settings’te Build command / Publish yoksa bu dosya kullanılır.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_GROQ_API_KEY,VITE_N8N_WEBHOOK_URL,VITE_N8N_MESSAGE_GET_URL,VITE_N8N_MESSAGE_POST_URL,VITE_GROQ_MODEL"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
