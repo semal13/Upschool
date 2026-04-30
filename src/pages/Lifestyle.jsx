@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Loader2, Dumbbell, ChefHat, Clock, Flame, RefreshCcw, Sparkles, Heart } from 'lucide-react';
+import { X, Loader2, Dumbbell, ChefHat, Clock, Flame, RefreshCcw, Sparkles, Heart, Calculator } from 'lucide-react';
 import { fetchLifestylePlan } from '../services/groqService';
 import { isStrictNoFallback } from '../lib/envFlags.js';
+import GlycemicCalculator from '../components/GlycemicCalculator';
 
 /** Journey / n8n bazen workout'u düz string döndürür; Lifestyle kartı + modal nesne bekler. */
 const normalizeDailyRecipe = (r) => {
@@ -361,10 +362,20 @@ const Lifestyle = () => {
         >
           <Dumbbell size={18} /> Egzersizler
         </button>
+        <button 
+          onClick={() => setActiveTab('calculator')} 
+          className={`flex-1 py-3 text-[15px] font-bold rounded-full z-10 transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'calculator' ? 'bg-[#93C572] dark:bg-[#7CB342] text-white shadow-purple-glow' : 'text-[#4a3f5e]/70 dark:text-purple-200/70'}`}
+        >
+          <Calculator size={18} /> Gİ Hesapla
+        </button>
       </div>
 
-      {/* Filter Chips */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-6 px-1">
+      {activeTab === 'calculator' ? (
+        <GlycemicCalculator />
+      ) : (
+        <>
+          {/* Filter Chips */}
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-6 px-1">
         {visibleFilters.map(filter => (
           <button 
             key={filter}
@@ -501,6 +512,8 @@ const Lifestyle = () => {
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
 
       {/* Educational Content Engine */}
