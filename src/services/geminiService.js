@@ -486,10 +486,10 @@ HARD RULE - ALERJEN GÜVENLİĞİ:
 - Şüpheli durumda o malzemeyi tamamen dışla ve güvenli alternatif kullan.
 - Eğer bu kurala uyamıyorsan yine de JSON dön, ama tüm tarifleri alerjensiz yeniden üret.
 
-Lütfen JSON formatında bütçeme, yaşam tarzıma ve döngü evreme %100 uygun, DAHA ÖNCE VERMEDİĞİN, tamamen YENİ 4 adet yemek tarifi ve TOPLAM 6 ADET BÜTÜNSEL EGZERSİZ RUTİNİ ver. 
+Lütfen JSON formatında bütçeme, yaşam tarzıma ve döngü evreme %100 uygun, DAHA ÖNCE VERMEDİĞİN, tamamen YENİ 3 adet yemek tarifi ve TOPLAM 3 ADET BÜTÜNSEL EGZERSİZ RUTİNİ ver. 
 
 ÇOK ÖNEMLİ EGZERSİZ KURALI:
-1) Egzersiz dağılımı KESİNLİKLE şöyle olmalıdır: 2 adet "Yoga", 2 adet "Güç", 2 adet "Düşük Efor". 
+1) Egzersiz dağılımı KESİNLİKLE şöyle olmalıdır: 1 adet "Yoga", 1 adet "Güç", 1 adet "Düşük Efor". 
 2) Göndereceğin her bir "workout" objesi ASLA tek bir atomic hareket (Örn: 'Ayakta Esneme', 'Karın Dayama') OLMAMALIDIR! 
 Her bir workout objesi 15-30 dakikalık tam teşekküllü, kapsamlı bir antrenman programı (Örn: 'Sabah Canlandırıcı Tüm Vücut Yogası', 'PCOS Terleten Kardiyo') olmalıdır. 
 İçindeki "movements" listesi ise bu antrenman programının içerdiği tekil hareketleri (Örn: Squat, Lunge, Kedi-İnek) barındırmalıdır. Bir rutinde en az 3-4 farklı hareket olmalı. Kullanıcı verisine harfiyen uy.

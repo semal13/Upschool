@@ -242,7 +242,9 @@ const Journey = () => {
         timestamp: new Date().toISOString(),
         analysis: result.analysis || 'Genel Tavsiye',
         recipeTitle: result.recipe.title || 'PCOS Dostu Tarif',
-        mood: selectedMoods.join(', ')
+        mood: selectedMoods.join(', '),
+        ingredients: result.recipe.ingredients || [],
+        steps: result.recipe.steps || []
       });
       const trimmedHistory = history.slice(0, 10);
       localStorage.setItem('talya_history', JSON.stringify(trimmedHistory));
@@ -442,7 +444,16 @@ const Journey = () => {
               </h3>
               <div className="space-y-3">
                 {historyLog.map((log, idx) => (
-                  <div key={idx} className="glass-card p-4 flex flex-col gap-1.5 border border-[#D7B4F3]/30 dark:border-[#8B5CF6]/20 transition-all hover:scale-[1.01] cursor-pointer">
+                  <div 
+                    key={idx} 
+                    onClick={() => openModal({
+                      title: log.recipeTitle,
+                      analysis: log.analysis,
+                      ingredients: log.ingredients || ["(Eski kayıtlarda malzeme detayı bulunmuyor)"],
+                      steps: log.steps || ["(Eski kayıtlarda yapılış detayı bulunmuyor)"]
+                    })}
+                    className="glass-card p-4 flex flex-col gap-1.5 border border-[#D7B4F3]/30 dark:border-[#8B5CF6]/20 transition-all hover:scale-[1.01] cursor-pointer"
+                  >
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[11px] font-bold text-[#8B5CF6] dark:text-[#a78bfa]">{new Date(log.timestamp).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                       <span className="text-[10px] font-bold bg-[#EAE2F3] dark:bg-slate-700 text-[#8B5CF6] dark:text-[#a78bfa] px-2.5 py-0.5 rounded-full">{log.mood}</span>
@@ -637,7 +648,7 @@ const Journey = () => {
               <div className="mb-6 p-4 bg-gradient-to-br from-purple-50/80 to-pink-50/50 dark:from-purple-900/20 dark:to-fuchsia-900/10 border border-[#D7B4F3]/40 dark:border-purple-800/30 rounded-[1.2rem] shadow-sm">
                 <h3 className="text-[11px] font-bold text-[#8B5CF6] dark:text-[#a78bfa] uppercase tracking-widest mb-2.5 flex items-center gap-1.5"><Sparkles size={14} /> Neden Sana Uygun?</h3>
                 <p className="text-[13px] text-[#4a3f5e]/90 dark:text-purple-100/90 font-medium leading-relaxed italic">
-                  {n8nResult?.analysis || 'Talya senin güncel durumunu ve girdilerini analiz ederek bu öneriyi senin için özel olarak hazırladı.'}
+                  {selectedItem.analysis || n8nResult?.analysis || 'Talya senin güncel durumunu ve girdilerini analiz ederek bu öneriyi senin için özel olarak hazırladı.'}
                 </p>
               </div>
 
