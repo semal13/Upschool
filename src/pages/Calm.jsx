@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart } from 'lucide-react';
 import ChatModal from '../components/ChatModal';
-import { sendCrisisMessage } from '../services/groqService';
+import { sendCrisisMessage } from '../services/geminiService';
 
 const Calm = () => {
   const [phase, setPhase] = useState('Başlamak için Dokun');

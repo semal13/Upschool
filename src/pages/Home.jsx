@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Activity, Coffee, Loader2, Sparkles, Droplets, Footprints, Lightbulb } from 'lucide-react';
-import { fetchMotivation, sendGeneralMessage } from '../services/groqService';
+import { fetchMotivation, sendGeneralMessage } from '../services/geminiService';
 import { sendSymptomsToN8n } from '../services/n8nService';
 import ChatModal from '../components/ChatModal';
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Loader2, Dumbbell, ChefHat, Clock, Flame, RefreshCcw, Sparkles, Heart, Calculator } from 'lucide-react';
-import { fetchLifestylePlan } from '../services/groqService';
+import { fetchLifestylePlan } from '../services/geminiService';
 import { isStrictNoFallback } from '../lib/envFlags.js';
 import GlycemicCalculator from '../components/GlycemicCalculator';
 
@@ -223,7 +223,7 @@ const Lifestyle = () => {
       } catch (e2) {
         console.error(e2);
         setPlan(null);
-        setPlanError("Plan yüklenirken beklenmeyen bir hata oluştu.");
+        setPlanError(e2.message || "Plan yüklenirken beklenmeyen bir hata oluştu.");
       }
     } finally {
       setIsLoading(false);

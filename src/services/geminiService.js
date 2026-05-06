@@ -1,52 +1,48 @@
 import { isStrictNoFallback } from "../lib/envFlags.js";
 
-// ─── Groq (OpenAI uyumlu chat completions) ────────────────────────────
-// Anahtar: https://console.groq.com/keys — .env: VITE_GROQ_API_KEY
-// Model: VITE_GROQ_MODEL (varsayılan llama-3.3-70b-versatile)
-const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
+// ─── Gemini (Google AI) ────────────────────────────
+// Anahtar: https://aistudio.google.com/app/apikey — .env: VITE_GEMINI_API_KEY
+// Model: VITE_GEMINI_MODEL (varsayılan gemini-2.5-flash)
 
-export const getGroqResponse = async (systemPrompt, messageHistoryArray = [], currentMessage, forceJson = false) => {
-  // Use the injected base64-encoded key from Vite to evade Netlify's secret scanner
-  const apiKey = typeof __ENCODED_GROQ_KEY__ !== "undefined" && __ENCODED_GROQ_KEY__ 
-    ? atob(__ENCODED_GROQ_KEY__) 
-    : "";
-  const model =
-    import.meta.env.VITE_GROQ_MODEL || "llama-3.3-70b-versatile";
+export const getGeminiResponse = async (systemPrompt, messageHistoryArray = [], currentMessage, forceJson = false) => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+  const model = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash";
 
   if (!apiKey) {
-    console.error(
-      "Groq API anahtarı bulunamadı (.env içinde VITE_GROQ_API_KEY)."
-    );
-    return "Groq API anahtarı eksik. Proje kökündeki .env dosyana anahtarını ekle (console.groq.com → API keys). 💜";
+    console.error("Gemini API anahtarı bulunamadı (.env içinde VITE_GEMINI_API_KEY).");
+    return "Gemini API anahtarı eksik. Proje kökündeki .env dosyana anahtarını ekle. 💜";
   }
 
   const history = (messageHistoryArray || []).map((msg) => ({
-    role: msg.isUser ? "user" : "assistant",
-    content: msg.text
+    role: msg.isUser ? "user" : "model",
+    parts: [{ text: msg.text }]
   }));
 
   const messages = [
-    { role: "system", content: systemPrompt },
     ...history,
-    { role: "user", content: currentMessage }
+    { role: "user", parts: [{ text: currentMessage }] }
   ];
 
-  // Düşük sıcaklık: Türkçe+İngilizce karışması ve yazım sapması azalır. JSON plan için biraz daha yüksek.
   const temperature = forceJson ? 0.85 : 0.65;
 
   const body = {
-    model,
-    messages,
-    temperature,
-    max_tokens: 2000,
-    ...(forceJson ? { response_format: { type: "json_object" } } : {})
+    systemInstruction: {
+      parts: [{ text: systemPrompt }]
+    },
+    contents: messages,
+    generationConfig: {
+      temperature,
+      maxOutputTokens: 8192,
+      ...(forceJson ? { responseMimeType: "application/json" } : {})
+    }
   };
 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
   try {
-    const response = await fetch(GROQ_CHAT_URL, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -55,30 +51,100 @@ export const getGroqResponse = async (systemPrompt, messageHistoryArray = [], cu
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      console.error("Groq isteği başarısız:", response.status, data);
-      const errMsg =
-        data?.error?.message || data?.message || `HTTP ${response.status}`;
-      const errLow = String(errMsg).toLowerCase();
-      if (
-        errLow.includes("rate limit") ||
-        errLow.includes("too many requests")
-      ) {
-        return "Groq istek limitine takıldık; kısa bir süre bekleyip tekrar dene. 💜";
-      }
+      console.error("Gemini isteği başarısız:", response.status, data);
+      const errMsg = data?.error?.message || `HTTP ${response.status}`;
       return `Şu an model yanıt veremedi: ${errMsg}. Bir süre sonra tekrar dene. 💜`;
     }
 
-    const text = data?.choices?.[0]?.message?.content;
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      console.warn("Groq boş yanıt döndü:", data);
+      console.warn("Gemini boş yanıt döndü:", data);
       return "Bir anlığına bağlantımız koptu ama ben seninleyim. Lütfen tekrar yazar mısın? 💜";
     }
     return text;
   } catch (error) {
-    console.error("Groq fetch başarısız:", error);
+    console.error("Gemini fetch başarısız:", error);
     return "Bir anlığına bağlantımız koptu ama ben seninleyim. Lütfen tekrar yazar mısın? 💜";
   }
 };
+
+export const getGeminiApiKey = () => {
+  return import.meta.env.VITE_GEMINI_API_KEY || "";
+};
+
+export const streamTalyaReply = async (messagesHistory, currentText, options = {}) => {
+  const { signal, onChunk } = options;
+  const apiKey = getGeminiApiKey();
+  const model = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash";
+
+  if (!apiKey) throw new Error("Gemini API key eksik");
+
+  const history = (messagesHistory || []).map((msg) => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.text }]
+  }));
+
+  const messages = [
+    ...history,
+    { role: "user", parts: [{ text: currentText }] }
+  ];
+
+  const systemPrompt = getSystemPrompt() + " Cevapların kesinlikle 3 cümleyi geçmesin. Maddeleme kullanman gerekirse çok kısa ve öz yap. Kullanıcıya her zaman ismiyle, çok samimi hitap et ve yargılamadan dinle.";
+
+  const body = {
+    systemInstruction: {
+      parts: [{ text: systemPrompt }]
+    },
+    contents: messages,
+    generationConfig: {
+      temperature: 0.65,
+      maxOutputTokens: 8192,
+    }
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini streaming error: ${response.status} - ${errText}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let done = false;
+
+  while (!done) {
+    const { value, done: readerDone } = await reader.read();
+    done = readerDone;
+    if (value) {
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.replace('data: ', '').trim();
+          if (dataStr === '[DONE]') continue;
+          try {
+            const data = JSON.parse(dataStr);
+            const textPart = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textPart && onChunk) {
+              onChunk(textPart);
+            }
+          } catch (e) {
+            // ignore JSON parse error on incomplete chunks
+          }
+        }
+      }
+    }
+  }
+};
+
 
 
 const getUserData = () => {
@@ -101,14 +167,14 @@ const getSystemPrompt = () => {
   const localDate = now.toLocaleDateString('tr-TR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const localTime = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Istanbul';
-  
+
   const currentPhase = cycleData.cyclePhase || data.cyclePhase || "Bilinmiyor";
   const currentDay = cycleData.cycleDay || "Bilinmiyor";
   const kitchen = data.kitchen || lifeConditions.kitchenType || "Belirtilmemiş";
   const lifestyle = data.lifestyle || "Belirtilmemiş";
   const diets = data.dietaryRestrictions && data.dietaryRestrictions.length > 0 ? data.dietaryRestrictions.join(', ') : 'Herhangi bir diyet/kısıtlama yok';
   const goal = data.goal || "PCOS Yönetimi";
-  
+
   return `Sen Talya'sın. PCOS'lu kadınlara şefkatle yaklaşan dijital bir yoldaşsın. Asla tıbbi teşhis koyma. 
   Yerel Tarih/Saat: "${localDate} - ${localTime}" (Saat Dilimi: ${timezone})
   Kullanıcının Adı: "${data.name}"
@@ -128,10 +194,10 @@ const getSystemPrompt = () => {
 export const fetchMotivation = async () => {
   const system = getSystemPrompt();
   const user = "Lütfen bana bugün bütçeme ve döngü evreme uygun, bana iyi hissettirecek, 3 cümleyi geçmeyen son derece samimi ve şefkatli bir sabah motivasyon mesajı yaz.";
-  return await getGroqResponse(system, [], user);
+  return await getGeminiResponse(system, [], user);
 };
 
-const safeParseGroqJson = (rawResponse = '') => {
+const safeParseGeminiJson = (rawResponse = '') => {
   if (!rawResponse || typeof rawResponse !== 'string') return null;
 
   // Prefer fenced JSON blocks if present.
@@ -329,7 +395,7 @@ export const fetchLifestylePlan = async (userData = {}) => {
   // Tüm kaynaklardan profil bilgisini birleştir
   const cycleData = JSON.parse(localStorage.getItem('talya_cycle_sync') || '{}');
   const lifeConditions = JSON.parse(localStorage.getItem('talya_life_conditions') || '{}');
-  
+
   const rawBudget = userData.budget || lifeConditions.budgetType || "Orta Halli";
   const rawKitchen = userData.kitchen || lifeConditions.kitchenType || "Belirtilmemiş";
 
@@ -354,12 +420,12 @@ export const fetchLifestylePlan = async (userData = {}) => {
   const allergens = userData.allergens?.length > 0
     ? userData.allergens.join(', ')
     : 'Alerjen bildirilmedi';
-  const dietaryRestrictions = userData.dietaryRestrictions?.length > 0 
-    ? userData.dietaryRestrictions.join(', ') 
+  const dietaryRestrictions = userData.dietaryRestrictions?.length > 0
+    ? userData.dietaryRestrictions.join(', ')
     : 'Kısıtlama yok';
   const cyclePhase = cycleData.cyclePhase || userData.cyclePhase || "Bilinmiyor";
   const cycleDay = cycleData.cycleDay || "Bilinmiyor";
-  
+
   let cycleRules = "";
   if (cycleDay !== "Bilinmiyor" && !isNaN(Number(cycleDay))) {
     const day = Number(cycleDay);
@@ -394,8 +460,8 @@ export const fetchLifestylePlan = async (userData = {}) => {
   const randomSeed = Math.floor(Math.random() * 1000000);
 
   const system = getSystemPrompt() + " SADECE GEÇERLİ BİR JSON FORMATI DÖNDÜR. MD kod parçacıkları kullanma, salt JSON döndür.";
-  
-const user = `YASAK TARİFLER - Bunları kesinlikle önerme: ${seenRecipes.slice(-20).join(', ')}
+
+  const user = `YASAK TARİFLER - Bunları kesinlikle önerme: ${seenRecipes.slice(-20).join(', ')}
 
 KULLANICI PROFİLİ (KESİNLİKLE UY):
  - Bütçe: ${budget}
@@ -446,16 +512,23 @@ Recipe tipleri şunlardan biri olmalı: "Glütensiz", "Yüksek Protein", "Düş�
     "Alerjen güvenliği: Yasak içerik geçmeyecek. Emin değilsen o içeriği tamamen çıkar."
   ];
 
-  const enhancedUser = `${user}\nACIK KURAL: Kullanıcı mutfağını "${kitchen}" olarak seçti. EĞER bu mutfak tam donanımlıysa KESİNLİKLE fırın veya ocakta pişen, gerçek sıcak yemek (sulu/fırın/tencere) tarifleri oluştur. Çiğ ürün (sadece salata/smoothie) oluşturma!`;
+  const enhancedUser = `${user}\nACIK KURAL: Kullanıcı mutfağını "${kitchen}" olarak seçti. EĞER bu mutfak tam donanımlıysa KESİNLİKLE fırın veya ocakta pişen, gerçek sıcak yemek (sulu/fırın/tencere) tarifleri oluştur. Çiğ ürün (sadece salata/smoothie) oluşturma! EĞER mutfak "Mini Mutfak" veya "Mutfak Yok" ise KESİNLİKLE ocak, fırın veya tencerede pişirme işlemi GEREKTİRMEYEN tarifler ver; sebzeleri sotelemek, kavurmak veya haşlamak (kettle hariç) YASAKTIR! Sadece sıcak su (kettle), mikrodalga veya çiğ/soğuk (buzdolabı) hazırlanabilen tarifler öner.`;
 
   for (const rule of extraRules) {
-    const rawResponse = await getGroqResponse(
+    const rawResponse = await getGeminiResponse(
       system,
       [],
       rule ? `${enhancedUser}\n\nEK KURAL:\n${rule}` : enhancedUser,
       true // forceJson
     );
-    const parsed = safeParseGroqJson(rawResponse);
+    
+    // Eğer API'den hata döndüyse (getGeminiResponse "Şu an model yanıt veremedi" dönerse), yedek plana geçmeden önce konsola yazdır
+    if (typeof rawResponse === 'string' && rawResponse.includes("Şu an model yanıt veremedi")) {
+      console.error("Gemini API Error in Lifestyle Plan:", rawResponse);
+      throw new Error(rawResponse);
+    }
+
+    const parsed = safeParseGeminiJson(rawResponse);
     if (parsed && !hasAllergenConflict(parsed, userData.allergens || [])) {
       saveCachedLifestylePlan(parsed);
       // Görülen tarifleri güncelle ve kaydet
@@ -481,11 +554,11 @@ Recipe tipleri şunlardan biri olmalı: "Glütensiz", "Yüksek Protein", "Düş�
 // 3. Calm.jsx -> Kriz Anı Chat (Crisis AI)
 export const sendCrisisMessage = async (history, message) => {
   const system = getSystemPrompt() + " Sen bir panik/kriz anı destek uzmanısın. Kullanıcı şu an anksiyete veya yeme atağı yaşıyor olabilir. Uzun paragraflar YAZMA. Sadece 1 veya 2 cümleyle ona güvende olduğunu hissettir ve ona odaklanması için basit bir nefes veya topraklanma sorusu sor (Örn: Etrafında mavi renkli 3 eşya sayabilir misin, yoksa birlikte derin bir nefes mi alalım?). Kullanıcıya direkt ismiyle, şefkatle hitap et.";
-  return await getGroqResponse(system, history, message);
+  return await getGeminiResponse(system, history, message);
 };
 
 // 4. Home.jsx -> Ask Talya Chat (General AI)
 export const sendGeneralMessage = async (history, message) => {
   const system = getSystemPrompt() + " Cevapların kesinlikle 3 cümleyi geçmesin. Maddeleme kullanman gerekirse çok kısa ve öz yap. Kullanıcıya her zaman ismiyle, çok samimi hitap et ve yargılamadan dinle.";
-  return await getGroqResponse(system, history, message);
+  return await getGeminiResponse(system, history, message);
 };

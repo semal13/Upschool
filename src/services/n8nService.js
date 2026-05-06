@@ -85,13 +85,52 @@ export const sendSymptomsToN8n = async (symptomsData) => {
       if(response.status === 404) throw new Error('n8n Webhook bulunamadı (URL hatalı veya webhook-test süresi dolmuş)');
       throw new Error(`Ağ hatası: n8n sunucusu ${response.status} döndürdü`);
     }
-    const data = await response.json();
+    let rawData = await response.json();
+    let data = Array.isArray(rawData) ? (rawData[0] || {}) : rawData;
+    // Eğer n8n raw item formatında döndüyse (örn: [{ json: { analysis: "..." } }])
+    if (data.json && typeof data.json === 'object') {
+      data = data.json;
+    }
+    
+    // Normalization for recipe
+    let parsedRecipe = data.recipe || data.tarif || null;
+    
+    // Eğer n8n yeni formattaki gibi düz yapı dönüyorsa (tarif_adi, malzemeler, hazirlanis)
+    if (!parsedRecipe && data.tarif_adi) {
+      parsedRecipe = {
+        title: data.tarif_adi,
+        ingredients: Array.isArray(data.malzemeler) ? data.malzemeler : (typeof data.malzemeler === 'string' ? [data.malzemeler] : ["Malzemeler belirtilmemiş"]),
+        steps: Array.isArray(data.hazirlanis) ? data.hazirlanis : (typeof data.hazirlanis === 'string' ? [data.hazirlanis] : ["Hazırlanış belirtilmemiş"])
+      };
+    } else if (typeof parsedRecipe === 'string') {
+      try {
+        parsedRecipe = JSON.parse(parsedRecipe);
+      } catch (e) {
+        parsedRecipe = {
+          title: "Sana Özel Tarif",
+          ingredients: ["Malzemeler n8n metninde yer alıyor"],
+          steps: [parsedRecipe]
+        };
+      }
+    }
+
+    // Normalization for workout
+    let parsedWorkout = data.workout || data.egzersiz || data.rutin || data.egzersiz_detay || "Hafif Egzersiz";
+    if (typeof parsedWorkout === 'string' && parsedWorkout.trim().startsWith('{')) {
+      try {
+        parsedWorkout = JSON.parse(parsedWorkout);
+      } catch (e) {}
+    }
+
+    // Normalization for analysis
+    let parsedAnalysis = data.analysis || data.text || data.neden_uygun || data.talya_notu || "Veriler başarıyla analiz edildi.";
+
     return {
       success: true,
-      analysis: data.analysis || "Veriler başarıyla analiz edildi.",
-      recipe: data.recipe || null,
-      tea: data.tea || "",
-      workout: data.workout || "",
+      analysis: parsedAnalysis,
+      recipe: parsedRecipe,
+      tea: data.tea || data.cay || data.çözüm || "Rahatlatıcı Çay",
+      workout: parsedWorkout,
       ...data
     };
   } catch (error) {
@@ -146,5 +185,21 @@ export const postCommunityMessage = async (text) => {
      return await res.json();
   } catch(e) {
      return { success: false };
+  }
+};
+
+export const fetchPreviousRecommendations = async (userId) => {
+  const url = import.meta.env.VITE_N8N_HISTORY_GET_URL || 'https://semal13.app.n8n.cloud/webhook/Talya-journey-history';
+  if (!url || url.includes('[') || !url.startsWith('http')) {
+    return [];
+  }
+  
+  try {
+     const res = await fetch(`${url}?userId=${encodeURIComponent(userId)}`);
+     const data = await res.json();
+     return Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+  } catch (e) {
+     console.error("Geçmiş verileri çekerken hata:", e);
+     return [];
   }
 };

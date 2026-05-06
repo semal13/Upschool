@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
-import { getGroqApiKey, streamTalyaReply } from '../services/groqService.js'
+import { getGeminiApiKey, streamTalyaReply } from '../services/geminiService.js'
 
 type Msg = { role: 'user' | 'assistant'; text: string }
 
@@ -37,9 +37,9 @@ export function TalyaGeminiChat({ open, onClose }: Props) {
   async function send() {
     const text = input.trim()
     if (!text || busy) return
-    if (!getGroqApiKey()) {
+    if (!getGeminiApiKey()) {
       setError(
-        'Groq API anahtarı yok. src/services/groqService.js içinde GROQ_API_KEY alanına kendi key’ini ekle.',
+        'Gemini API anahtarı yok. .env dosyasına VITE_GEMINI_API_KEY ekle.',
       )
       return
     }
