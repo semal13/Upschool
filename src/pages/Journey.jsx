@@ -173,7 +173,7 @@ const Journey = () => {
     const userData = JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
     const cycleData = JSON.parse(localStorage.getItem('talya_cycle_sync') || '{}');
 
-    const injectionPrompt = `User feels: ${selectedMoods.join(', ')}. Please adjust the 'analysis' part of your response to be empathetic to this specific mood. Also note their lifestyle is ${userData.lifestyle || 'unknown'} and budget is ${userData.budget || 'unknown'}.`;
+    const injectionPrompt = `Kullanıcının bugünkü duygu durumu: ${selectedMoods.join(', ')}. Lütfen 'analysis' (Neden Sana Uygun?) kısmını yazarken: 1) Kullanıcının bu ruh haline şefkatle yaklaş. 2) Önerdiğin yemeğin İÇİNDEKİ HANGİ MALZEMENİN onun bu şikayetine iyi geleceğini AÇIKLA. 3) Önerdiğin egzersizin veya çayın onun döngüsüne neden uygun olduğunu AÇIKLA. Sadece "sana iyi gelecek" deme, bilimsel ama çok sıcak/samimi bir dille nedenini detaylandır. Yaşam tarzı: ${userData.lifestyle || 'Bilinmiyor'}, Bütçe: ${userData.budget || 'Bilinmiyor'}.`;
 
     const payload = {
       timestamp: new Date().toISOString(),
