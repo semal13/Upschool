@@ -4,6 +4,7 @@ import { Heart, Activity, Coffee, Loader2, Sparkles, Droplets, Footprints, Light
 import { fetchMotivation, sendGeneralMessage } from '../services/geminiService';
 import { sendSymptomsToN8n } from '../services/n8nService';
 import ChatModal from '../components/ChatModal';
+import { prefetchLifestylePlan } from '../services/geminiService';
 
 const pcosTips = [
   "PYS Sırrı 💧: Düzenli su içmek vücudun detoksifiye olmasını sağlar ve PCOS ödemini inanılmaz hızlı atar. Hedefin en az 2 litre olmalı!",
@@ -97,6 +98,11 @@ const Home = () => {
     };
 
     getMotivation();
+    
+    // Arka planda Lifestyle sayfasını sessizce hazırla
+    if (data) {
+      prefetchLifestylePlan(JSON.parse(data));
+    }
   }, []);
 
   return (

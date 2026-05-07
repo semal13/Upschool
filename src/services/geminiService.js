@@ -461,6 +461,20 @@ export const fetchLifestylePlan = async (userData = {}) => {
     "Ayakta yapılan, ekipmansız ve sessiz (zıplamasız) pilates"
   ];
 
+  // PREFETCH KONTROLÜ (EĞER ARKA PLANDA HAZIRLANMIŞSA ANINDA DÖNDÜR)
+  try {
+    const prefetchedStr = localStorage.getItem('talya_prefetched_plan');
+    if (prefetchedStr && prefetchedStr !== 'undefined' && prefetchedStr !== 'null') {
+      const prefetchedPlan = JSON.parse(prefetchedStr);
+      if (prefetchedPlan?.recipes?.length && prefetchedPlan?.workouts?.length) {
+        // Prefetch planını kullandıktan sonra sil ki bir sonraki sefer yenisi üretilsin
+        localStorage.removeItem('talya_prefetched_plan');
+        saveCachedLifestylePlan(prefetchedPlan);
+        return prefetchedPlan;
+      }
+    }
+  } catch(e) {}
+
   const randomTheme = themes[Math.floor(Math.random() * themes.length)];
   const randomWorkout = workoutThemes[Math.floor(Math.random() * workoutThemes.length)];
   const randomSeed = Math.floor(Math.random() * 1000000);
@@ -556,6 +570,31 @@ Recipe tipleri şunlardan biri olmalı: "Glütensiz", "Yüksek Protein", "Düş�
   // Varsayılan: offline / son başarılı plan / yerel acil şablon
   return buildEmergencyPlan({ budget, kitchen, goal, dietaryRestrictions, cyclePhase });
 };
+
+// ARKA PLANDA GİZLİCE ÇALIŞAN (SESSİZ) FONKSİYON
+export const prefetchLifestylePlan = async (userData = {}) => {
+  // Eğer zaten hazırlanmış bir plan bekliyorsa tekrar yorma
+  if (localStorage.getItem('talya_prefetched_plan')) return;
+  
+  try {
+    // Normal fonksiyonu çalıştır ama ekrana değil localStorage'a yaz
+    // Küçük bir bekleme süresi koyalım ki ana sayfanın yüklenmesini yavaşlatmasın
+    await new Promise(r => setTimeout(r, 3000));
+    
+    const profile = Object.keys(userData).length > 0 ? userData : JSON.parse(localStorage.getItem('talya:user-profile') || '{}');
+    
+    // Arkada sessizce fetch'i çağır. (UI engellenmez)
+    const plan = await fetchLifestylePlan(profile);
+    
+    // Eğer başarılı bir sonuç dönerse, bunu prefetch deposuna sakla!
+    if (plan && plan.recipes && plan.workouts) {
+       localStorage.setItem('talya_prefetched_plan', JSON.stringify(plan));
+    }
+  } catch(e) {
+    console.error("Prefetch error:", e);
+  }
+};
+
 
 // 3. Calm.jsx -> Kriz Anı Chat (Crisis AI)
 export const sendCrisisMessage = async (history, message) => {
